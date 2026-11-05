@@ -2,3 +2,8 @@
 __pycache__/
 .mypy_cache/
 .venv
+
+
+Makefile
+poetry.lock
+pyproject.toml
