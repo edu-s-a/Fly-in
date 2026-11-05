@@ -1,2 +1,4 @@
 /maps
-maps.tar.gz
+__pycache__/
+.mypy_cache/
+.venv
