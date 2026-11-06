@@ -7,3 +7,4 @@ __pycache__/
 Makefile
 poetry.lock
 pyproject.toml
+/tests
