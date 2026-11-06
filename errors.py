@@ -30,3 +30,7 @@ class ParseError(FlyInError):
         if self.line is None:
             return self.reason
         return f"line {self.line}: {self.reason}"
+
+
+class NetworkError(FlyInError):
+    pass
