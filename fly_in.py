@@ -1,7 +1,7 @@
 import sys
 
 from errors import FlyInError
-from parser import MapParser
+from map_parser import MapParser
 
 
 def main() -> int:
@@ -10,7 +10,7 @@ def main() -> int:
         print("Usage: python3 fly_in.py <map_file>", file=sys.stderr)
         return 2
     try:
-        network = MapParser().parse(sys.argv[1])
+        MapParser().parse(sys.argv[1])
         # simulation goes here
     except FlyInError as err:
         print(f"Error: {err}", file=sys.stderr)
