@@ -75,5 +75,3 @@ class Network:
     @property
     def connections(self) -> tuple[Connection, ...]:
         return tuple(self._connections)
-
-
