@@ -87,9 +87,9 @@ class Connection:
 
     def other(self, zone: Zone) -> Zone:
         """Return the other zone connected to this link."""
-        if zone.name == self.zone_1:
+        if zone.name == self.zone_1.name:
             return self.zone_2
-        if zone.name == self.zone_2:
+        if zone.name == self.zone_2.name:
             return self.zone_1
         raise ValueError(
             f"zone '{zone.name}' is not part of connection '{self.name}'")
