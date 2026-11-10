@@ -3,7 +3,7 @@
 PYTHON      := python3
 POETRY      := poetry
 MAIN        := fly_in.py
-MAP        	?= maps/easy/01_linear_path.txt
+MAP        	?= maps/example.txt
 
 GREEN       := \033[1;32m
 YELLOW      := \033[1;33m
