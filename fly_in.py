@@ -10,8 +10,8 @@ def main() -> int:
         print("Usage: python3 fly_in.py <map_file>", file=sys.stderr)
         return 2
     try:
-        MapParser().parse(sys.argv[1])
-        # simulation goes here
+        network = MapParser().parse(sys.argv[1])
+        print(f"parsed {len(network.zones)} zones")  # placeholder
     except FlyInError as err:
         print(f"Error: {err}", file=sys.stderr)
         return 1
