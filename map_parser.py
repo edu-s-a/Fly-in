@@ -1,6 +1,6 @@
 from errors import ParseError, NetworkError
 from network import Network
-from zone import Zone, ZoneRole, ZoneType
+from zone import Connection, Zone, ZoneRole, ZoneType
 
 
 class MapParser:
@@ -8,9 +8,9 @@ class MapParser:
     _ZONE_KEYWORDS: dict[str, ZoneRole] = {
         "start_hub": ZoneRole.START,
         "end_hub": ZoneRole.END,
-        "hub": ZoneRole.REGULAR,
-    }
+        "hub": ZoneRole.REGULAR}
     _ZONE_KEYS: set[str] = {"zone", "color", "max_drones"}
+    _CONNECTION_KEYS: set[str] = {"max_link_capacity"}
 
     def __init__(self) -> None:
         self._connection_keys: set[frozenset[str]] = set()
@@ -28,6 +28,11 @@ class MapParser:
             self._parse_entry(network, line, line_no)
         if network is None:
             raise ParseError("file contains no nb_drones")
+        try:
+            _ = network.start
+            _ = network.end
+        except NetworkError as err:
+            raise ParseError(str(err)) from None
         return network
 
     def _parse_entry(self, network: Network, line: str, line_no: int) -> None:
@@ -163,4 +168,40 @@ class MapParser:
     def _parse_connection(
         self, network: Network, value: str, line_no: int
     ) -> None:
-        return
+        body, meta = self._split_metadata(value, line_no)
+        names = body.split("-")
+        if len(body.split()) != 1 or len(names) != 2 or not all(names):
+            raise ParseError("expected '<zone1>-<zone2>'", line_no)
+        name_1, name_2 = names
+        if name_1 == name_2:
+            raise ParseError(
+                f"connection links zone '{name_1}' to itself", line_no
+            )
+        try:
+            zone_1 = network.get_zone(name_1)
+            zone_2 = network.get_zone(name_2)
+        except NetworkError as err:
+            raise ParseError(str(err), line_no) from None
+        for key in meta:
+            if key not in self._CONNECTION_KEYS:
+                raise ParseError(
+                    f"unknown connection metadata key '{key}'", line_no
+                )
+        capacity = 1
+        if "max_link_capacity" in meta:
+            capacity = self._parse_positive_int(
+                meta["max_link_capacity"], "max_link_capacity", line_no
+            )
+        pair = frozenset((name_1, name_2))
+        if pair in self._connection_keys:
+            raise ParseError(
+                f"duplicate connection '{name_1}-{name_2}'", line_no
+            )
+        connection = Connection(
+            zone_1=zone_1, zone_2=zone_2, max_link_capacity=capacity
+        )
+        try:
+            network.add_connection(connection)
+        except NetworkError as err:
+            raise ParseError(str(err), line_no) from None
+        self._connection_keys.add(pair)
