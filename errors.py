@@ -34,3 +34,7 @@ class ParseError(FlyInError):
 
 class NetworkError(FlyInError):
     pass
+
+
+class NoPathError(FlyInError):
+    pass
