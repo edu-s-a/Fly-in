@@ -38,3 +38,7 @@ class NetworkError(FlyInError):
 
 class NoPathError(FlyInError):
     pass
+
+
+class SimulationError(FlyInError):
+    pass
