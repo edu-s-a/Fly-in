@@ -75,3 +75,11 @@ class Network:
     @property
     def connections(self) -> tuple[Connection, ...]:
         return tuple(self._connections)
+
+    def connection_between(self, zone_a: Zone, zone_b: Zone) -> Connection:
+        for connection in self.connections_of(zone_a):
+            if connection.other(zone_a).name == zone_b.name:
+                return connection
+        raise NetworkError(
+            f"no connection between '{zone_a.name}' and '{zone_b.name}'"
+        )
