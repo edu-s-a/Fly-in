@@ -4,6 +4,7 @@ from zone import Connection, Zone, ZoneRole, ZoneType
 
 
 class MapParser:
+    """Parse map files into network objects."""
 
     _ZONE_KEYWORDS: dict[str, ZoneRole] = {
         "start_hub": ZoneRole.START,
@@ -13,6 +14,7 @@ class MapParser:
     _CONNECTION_KEYS: set[str] = {"max_link_capacity"}
 
     def __init__(self) -> None:
+        """Initialize the parser's connection tracking."""
         self._connection_keys: set[frozenset[str]] = set()
 
     def parse(self, path: str) -> Network:
@@ -27,6 +29,7 @@ class MapParser:
         return self._parse_lines(lines)
 
     def _parse_lines(self, lines: list[str]) -> Network:
+        """Parse map-file lines and validate the resulting network."""
         network: Network | None = None
         self._connection_keys = set()
         for line_no, raw in enumerate(lines, start=1):
@@ -47,6 +50,7 @@ class MapParser:
         return network
 
     def _parse_entry(self, network: Network, line: str, line_no: int) -> None:
+        """Parse one non-header line and add its entry to ``network``."""
         keyword, sep, value = line.partition(":")
         keyword = keyword.strip()
         value = value.strip()
@@ -64,6 +68,7 @@ class MapParser:
             raise ParseError(f"unknown keyword '{keyword}'", line_no)
 
     def _parse_header(self, line: str, line_no: int) -> Network:
+        """Parse the required first line and create a network."""
         keyword, sep, value = line.partition(":")
         if not sep or keyword.strip() != "nb_drones":
             raise ParseError("nb_drones must be the first line", line_no)
@@ -74,6 +79,7 @@ class MapParser:
 
     def _split_metadata(self, value: str, line_no: int
                         ) -> tuple[str, dict[str, str]]:
+        """Separate a line's body from optional ``[key=value]`` metadata."""
         start = value.find("[")
         if start == -1:
             if "]" in value:
@@ -101,6 +107,7 @@ class MapParser:
     def _parse_zone(
         self, network: Network, value: str, role: ZoneRole, line_no: int
     ) -> None:
+        """Parse a zone declaration and add the zone to ``network``."""
         body, meta = self._split_metadata(value, line_no)
         tokens = body.split()
         if len(tokens) != 3:
@@ -138,6 +145,7 @@ class MapParser:
             raise ParseError(str(err), line_no) from None
 
     def _parse_zone_type(self, text: str, line_no: int) -> ZoneType:
+        """Convert a zone-type string to its corresponding enum value."""
         try:
             return ZoneType(text)
         except ValueError:
@@ -150,6 +158,7 @@ class MapParser:
     def _parse_connection(
         self, network: Network, value: str, line_no: int
     ) -> None:
+        """Parse a connection declaration and add it to ``network``."""
         body, meta = self._split_metadata(value, line_no)
         names = body.split("-")
         if len(body.split()) != 1 or len(names) != 2 or not all(names):
