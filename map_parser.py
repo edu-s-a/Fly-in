@@ -15,6 +15,17 @@ class MapParser:
     def __init__(self) -> None:
         self._connection_keys: set[frozenset[str]] = set()
 
+    def parse(self, path: str) -> Network:
+        """Parse a map file into a Network."""
+        try:
+            with open(path, encoding="utf-8") as file:
+                lines = file.read().splitlines()
+        except OSError as err:
+            raise ParseError(f"cannot read '{path}': {err.strerror}") from err
+        except UnicodeDecodeError:
+            raise ParseError(f"'{path}' is not valid UTF-8 text") from None
+        return self._parse_lines(lines)
+
     def _parse_lines(self, lines: list[str]) -> Network:
         network: Network | None = None
         self._connection_keys = set()
@@ -60,35 +71,6 @@ class MapParser:
             value.strip(), "nb_drones", line_no
         )
         return Network(nb_drones)
-
-    def parse(self, path: str) -> Network:
-        """Parse a map file into a Network."""
-        try:
-            with open(path, encoding="utf-8") as file:
-                lines = file.read().splitlines()
-        except OSError as err:
-            raise ParseError(f"cannot read '{path}': {err.strerror}") from err
-        except UnicodeDecodeError:
-            raise ParseError(f"'{path}' is not valid UTF-8 text") from None
-        return self._parse_lines(lines)
-
-    def _parse_int(self, text: str, what: str, line: int) -> int:
-        """Convert text to int or raise a ParseError."""
-        try:
-            return int(text)
-        except ValueError:
-            raise ParseError(
-                f"{what} must be an integer, got '{text}'", line
-            ) from None
-
-    def _parse_positive_int(self, text: str, what: str, line: int) -> int:
-        """Convert text to a strictly positive int."""
-        value = self._parse_int(text, what, line)
-        if value <= 0:
-            raise ParseError(
-                f"{what} must be a positive integer, got '{text}'", line
-            )
-        return value
 
     def _split_metadata(self, value: str, line_no: int
                         ) -> tuple[str, dict[str, str]]:
@@ -205,3 +187,21 @@ class MapParser:
         except NetworkError as err:
             raise ParseError(str(err), line_no) from None
         self._connection_keys.add(pair)
+
+    def _parse_int(self, text: str, what: str, line: int) -> int:
+        """Convert text to int or raise a ParseError."""
+        try:
+            return int(text)
+        except ValueError:
+            raise ParseError(
+                f"{what} must be an integer, got '{text}'", line
+            ) from None
+
+    def _parse_positive_int(self, text: str, what: str, line: int) -> int:
+        """Convert text to a strictly positive int."""
+        value = self._parse_int(text, what, line)
+        if value <= 0:
+            raise ParseError(
+                f"{what} must be a positive integer, got '{text}'", line
+            )
+        return value
