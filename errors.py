@@ -33,12 +33,12 @@ class ParseError(FlyInError):
 
 
 class NetworkError(FlyInError):
-    pass
+    """Raised when a network or routing structure is invalid."""
 
 
 class NoPathError(FlyInError):
-    pass
+    """Raised when no valid route exists between two points."""
 
 
 class SimulationError(FlyInError):
-    pass
+    """Raised when the simulation cannot run or complete correctly."""
