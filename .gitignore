@@ -2,13 +2,6 @@
 __pycache__/
 .mypy_cache/
 .venv
-
-poetry.lock
-pyproject.toml
 /tests
-conftest.py
-out.txt
 REVIEW.txt
 
-python -m venv .venv
-source .venv/bin/activate 
