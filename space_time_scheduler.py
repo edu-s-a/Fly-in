@@ -8,7 +8,6 @@ from move import Move
 from network import Network
 from pathfinder import Pathfinder
 from reservation import ReservationTable
-from scheduler import Scheduler
 from simulation import Simulation
 from zone import Connection, Zone, ZoneType
 
@@ -28,7 +27,7 @@ Successor = tuple[Zone, int, Step | None]
 Turn = list[tuple[int, Step]]
 
 
-class SpaceTimeScheduler(Scheduler):
+class SpaceTimeScheduler:
 
     BASE_MODES = 3
 
