@@ -7,11 +7,9 @@ from renderer import Renderer
 from simulation import Simulation
 from space_time_scheduler import SpaceTimeScheduler
 
-USAGE = "Usage: python3 fly_in.py [--visual] [--no-color] <map_file>"
-FLAGS = {"--visual", "--no-color"}
-
 
 def parse_args(args: list[str]) -> tuple[str, set[str]] | None:
+    FLAGS = {"--visual", "--no-color"}
     flags = {arg for arg in args if arg.startswith("--")}
     paths = [arg for arg in args if not arg.startswith("--")]
     if len(paths) != 1 or not flags <= FLAGS:
@@ -40,6 +38,7 @@ def report(simulation: Simulation) -> None:
 
 
 def main() -> int:
+    USAGE = "Usage: python3 fly_in.py [--visual] [--no-color] <map_file>"
     parsed = parse_args(sys.argv[1:])
     if parsed is None:
         print(USAGE, file=sys.stderr)
