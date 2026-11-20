@@ -3,7 +3,7 @@
 PYTHON      := python3
 POETRY      := poetry
 MAIN        := fly_in.py
-MAP         ?= maps/example.txt
+MAP         ?= maps/easy/01_linear_path.txt
 ARGS        ?=
 
 GREEN       := \033[1;32m
@@ -18,7 +18,7 @@ MYPY_FLAGS  := --warn-return-any \
                --check-untyped-defs
 MYPY_EXCL   := --exclude '(^|/)\.venv/'
 
-BENCH_DIRS  := maps maps/own maps/easy maps/medium maps/hard maps/challenger
+BENCH_DIRS  := maps/easy maps/medium maps/hard maps/challenger
 
 install:
 	@if ! command -v poetry >/dev/null 2>&1; then \
