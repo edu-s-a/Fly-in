@@ -2,17 +2,18 @@ from network import Network
 from simulation import TurnResult
 from zone import Zone, ZoneRole
 
-RESET = "\033[0m"
-UNLIMITED = (ZoneRole.START, ZoneRole.END)
-
 
 class Renderer:
+    _RESET = "\033[0m"
+    _ENDPOINT = (ZoneRole.START, ZoneRole.END)
 
     NAMED: dict[str, str] = {
-        "black": "30", "red": "31", "green": "32", "yellow": "33",
+        "black": "30;47", "red": "31", "green": "32", "yellow": "33",
         "blue": "34", "magenta": "35", "purple": "35", "cyan": "36",
         "white": "37", "gray": "90", "grey": "90",
         "orange": "38;5;208", "pink": "38;5;213", "brown": "38;5;94",
+        "gold": "38;5;220", "maroon": "38;5;88", "darkred": "38;5;124",
+        "crimson": "38;5;161", "violet": "38;5;177",
     }
     PALETTE: list[int] = [196, 202, 208, 214, 220, 118, 49, 45, 33, 99, 171]
 
@@ -28,7 +29,7 @@ class Renderer:
     def paint(self, text: str, code: str) -> str:
         if not self._enabled or not code:
             return text
-        return f"\033[{code}m{text}{RESET}"
+        return f"\033[{code}m{text}{self._RESET}"
 
     def _code(self, color: str | None) -> str:
         if color is None:
@@ -41,7 +42,7 @@ class Renderer:
 
     def zone_text(self, zone: Zone, width: int = 0) -> str:
         code = self._code(zone.color)
-        if code and zone.role in UNLIMITED:
+        if code and zone.role in self._ENDPOINT:
             code = "1;" + code
         return self.paint(zone.name.ljust(width), code)
 
@@ -102,6 +103,7 @@ class Renderer:
 
     def _occupancy(self) -> list[str]:
         groups: dict[str, list[int]] = {}
+        width = max(len(zone.name) for zone in self._network.zones)
         for number, name in sorted(self._where.items()):
             groups.setdefault(name, []).append(number)
         lines: list[str] = []
@@ -110,10 +112,10 @@ class Renderer:
             if not ids:
                 continue
             load = f"{len(ids)}"
-            if zone.role not in UNLIMITED:
+            if zone.role not in self._ENDPOINT:
                 load += f"/{zone.max_drones}"
             drones = " ".join(f"D{number}" for number in ids)
-            lines.append(f"    {self.zone_text(zone)} [{load}]: {drones}")
+            lines.append(f"    {self.zone_text(zone, width)} [{load}]: {drones}")
         if self._flying:
             items = sorted(self._flying.items())
             flying = " ".join(f"D{n}({link})" for n, link in items)
