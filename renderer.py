@@ -20,11 +20,11 @@ class Renderer:
     def __init__(self, network: Network, enabled: bool) -> None:
         self._network = network
         self._enabled = enabled
+        self._flying: dict[int, str] = {}
         self._where: dict[int, str] = {
             number: network.start.name
             for number in range(1, network.nb_drones + 1)
         }
-        self._flying: dict[int, str] = {}
 
     def paint(self, text: str, code: str) -> str:
         if not self._enabled or not code:
@@ -115,7 +115,8 @@ class Renderer:
             if zone.role not in self._ENDPOINT:
                 load += f"/{zone.max_drones}"
             drones = " ".join(f"D{number}" for number in ids)
-            lines.append(f"    {self.zone_text(zone, width)} [{load}]: {drones}")
+            lines.append(f"    {self.zone_text(zone, width)} [{load}]: "
+                         f"{drones}")
         if self._flying:
             items = sorted(self._flying.items())
             flying = " ".join(f"D{n}({link})" for n, link in items)
