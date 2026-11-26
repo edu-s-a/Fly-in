@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from drone import Drone
 from errors import SimulationError
@@ -11,6 +11,12 @@ from zone import Connection, Zone, ZoneRole
 class TurnResult:
     turn: int
     tokens: tuple[str, ...]
+    zone_usage: dict[str, tuple[int, int | None]] = field(
+        default_factory=dict, compare=False
+    )
+    link_usage: dict[str, tuple[int, int]] = field(
+        default_factory=dict, compare=False
+    )
 
     @property
     def line(self) -> str:
@@ -28,6 +34,10 @@ class Simulation:
         self._turn: int = 0
         self._results: list[TurnResult] = []
         self._total_cost: int = 0
+
+    @property
+    def network(self) -> Network:
+        return self._network
 
     @property
     def drones(self) -> tuple[Drone, ...]:
@@ -88,8 +98,8 @@ class Simulation:
         instant = [move for move in moves if move.cost == 1]
         slow = [move for move in moves if move.cost == 2]
         self._check_zone_capacity(moves, instant, forced)
-        self._check_link_capacity(moves, forced)
-        return self._apply(instant, slow, forced)
+        links = self._check_link_capacity(moves, forced)
+        return self._apply(instant, slow, forced, links)
 
     def _owns(self, drone: Drone) -> bool:
         index = drone.id - 1
@@ -163,7 +173,7 @@ class Simulation:
 
     def _check_link_capacity(
         self, moves: list[Move], forced: list[Drone]
-    ) -> None:
+    ) -> dict[str, tuple[int, int]]:
         links = [move.connection for move in moves]
         links += [drone.connection for drone in forced]
         usage: dict[frozenset[str], int] = {}
@@ -172,6 +182,7 @@ class Simulation:
             key = frozenset((link.zone_1.name, link.zone_2.name))
             usage[key] = usage.get(key, 0) + 1
             seen[key] = link
+        report: dict[str, tuple[int, int]] = {}
         for key, used in usage.items():
             link = seen[key]
             if used > link.max_link_capacity:
@@ -179,9 +190,27 @@ class Simulation:
                     f"connection '{link.name}' over capacity "
                     f"({used}/{link.max_link_capacity})"
                 )
+            report[link.name] = (used, link.max_link_capacity)
+        return report
+
+    def _zone_usage(self) -> dict[str, tuple[int, int | None]]:
+        count: dict[str, int] = {}
+        for drone in self._drones:
+            if not drone.in_transit:
+                name = drone.zone.name
+                count[name] = count.get(name, 0) + 1
+        usage: dict[str, tuple[int, int | None]] = {}
+        for zone in self._network.zones:
+            if zone.name in count:
+                usage[zone.name] = (count[zone.name], zone.capacity)
+        return usage
 
     def _apply(
-        self, instant: list[Move], slow: list[Move], forced: list[Drone]
+        self,
+        instant: list[Move],
+        slow: list[Move],
+        forced: list[Drone],
+        links: dict[str, tuple[int, int]],
     ) -> TurnResult:
         turn = self._turn + 1
         entries: list[tuple[int, str]] = []
@@ -204,7 +233,12 @@ class Simulation:
         entries.sort()
         self._total_cost += sum(move.cost for move in instant + slow)
         self._turn = turn
-        result = TurnResult(turn, tuple(token for _, token in entries))
+        result = TurnResult(
+            turn,
+            tuple(token for _, token in entries),
+            self._zone_usage(),
+            links,
+        )
         self._results.append(result)
         return result
 
@@ -212,7 +246,3 @@ class Simulation:
     def _deliver_if_end(drone: Drone, zone: Zone, turn: int) -> None:
         if zone.role is ZoneRole.END:
             drone.deliver(turn)
-
-    @property
-    def network(self) -> Network:
-        return self._network
