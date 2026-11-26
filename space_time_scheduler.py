@@ -1,6 +1,7 @@
 import heapq
 import itertools
 import zlib
+import time
 from dataclasses import dataclass
 
 from errors import SimulationError
@@ -31,8 +32,11 @@ class SpaceTimeScheduler:
 
     BASE_MODES = 3
 
-    def __init__(self, restarts: int = 40) -> None:
+    def __init__(
+        self, restarts: int = 40, time_budget: float = 10.0
+    ) -> None:
         self._restarts = restarts
+        self._time_budget = time_budget
 
     def plan(self, simulation: Simulation) -> list[list[Move]]:
         network = simulation.network
@@ -42,6 +46,7 @@ class SpaceTimeScheduler:
         dist = finder.distances_to(network.end)
         horizon = len(drones) * baseline.cost
         bound = self._lower_bound(network, len(drones), baseline.cost)
+        began = time.monotonic()
         best_turns: list[Turn] | None = None
         best_score: tuple[int, int] | None = None
         for mode in range(self.BASE_MODES + self._restarts):
@@ -52,6 +57,8 @@ class SpaceTimeScheduler:
                 best_score = score
                 best_turns = turns
             if best_score[0] <= bound:
+                break
+            if time.monotonic() - began > self._time_budget:
                 break
         if best_turns is None:
             raise SimulationError("no schedule found")
