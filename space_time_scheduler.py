@@ -1,3 +1,5 @@
+"""Build capacity-aware, space-time schedules for drone movements."""
+
 import heapq
 import itertools
 import zlib
@@ -18,6 +20,15 @@ Rank = tuple[int, int]
 
 @dataclass(frozen=True)
 class Step:
+    """Represent one scheduled movement step.
+
+    Attributes:
+        zone: Destination zone.
+        link: Connection used for the movement.
+        depart: Turn on which movement departs.
+        arrive: Turn on which movement arrives.
+    """
+
     zone: Zone
     link: Connection
     depart: int
@@ -29,16 +40,34 @@ Turn = list[tuple[int, Step]]
 
 
 class SpaceTimeScheduler:
+    """Search for a capacity-valid schedule of drone routes."""
 
     BASE_MODES = 3
 
     def __init__(
         self, restarts: int = 40, time_budget: float = 10.0
     ) -> None:
+        """Initialize scheduler search limits.
+
+        Args:
+            restarts: Number of additional search modes to try.
+            time_budget: Maximum scheduling time in seconds.
+        """
         self._restarts = restarts
         self._time_budget = time_budget
 
     def plan(self, simulation: Simulation) -> list[list[Move]]:
+        """Create a movement plan for every drone.
+
+        Args:
+            simulation: Simulation for which to schedule movements.
+
+        Returns:
+            Movement lists ordered by turn.
+
+        Raises:
+            SimulationError: If no valid schedule is found.
+        """
         network = simulation.network
         drones = simulation.drones
         finder = Pathfinder(network)
@@ -66,6 +95,16 @@ class SpaceTimeScheduler:
 
     @staticmethod
     def _lower_bound(network: Network, count: int, cost: int) -> int:
+        """Estimate the shortest possible number of turns.
+
+        Args:
+            network: Network containing entry and exit capacities.
+            count: Number of drones to schedule.
+            cost: Baseline route cost.
+
+        Returns:
+            Lower-bound turn estimate.
+        """
         leaving = sum(
             link.max_link_capacity
             for _, link in network.neighbors(network.start)
@@ -79,6 +118,15 @@ class SpaceTimeScheduler:
 
     @staticmethod
     def _moves(simulation: Simulation, turn: Turn) -> list[Move]:
+        """Convert one scheduled turn into Move objects.
+
+        Args:
+            simulation: Simulation providing drone instances.
+            turn: Scheduled steps in the turn.
+
+        Returns:
+            Moves ready for the simulation.
+        """
         drones = simulation.drones
         return [
             Move(drones[index], step.zone, step.link)
@@ -93,6 +141,18 @@ class SpaceTimeScheduler:
         horizon: int,
         mode: int,
     ) -> list[list[Step]]:
+        """Solve routes sequentially with shared reservations.
+
+        Args:
+            network: Network in which to search.
+            count: Number of drone routes to solve.
+            dist: Minimum distances from each zone to the end.
+            horizon: Maximum turn allowed.
+            mode: Routing tie-break mode.
+
+        Returns:
+            One ordered route for each drone.
+        """
         table = ReservationTable()
         routes: list[list[Step]] = []
         for _ in range(count):
@@ -103,6 +163,15 @@ class SpaceTimeScheduler:
 
     @staticmethod
     def _increment(mode: int, zone: Zone | None) -> Rank:
+        """Calculate the search rank increment for a successor state.
+
+        Args:
+            mode: Tie-break mode.
+            zone: Destination zone, or None for a waiting state.
+
+        Returns:
+            Rank increment tuple.
+        """
         if zone is None:
             waits, plain = 1, 0
         else:
@@ -127,6 +196,18 @@ class SpaceTimeScheduler:
         turn: int,
         horizon: int,
     ) -> list[Successor]:
+        """Generate waiting and movement successors for a state.
+
+        Args:
+            network: Network containing adjacent zones.
+            table: Existing reservations.
+            zone: Current zone.
+            turn: Current turn.
+            horizon: Maximum allowed turn.
+
+        Returns:
+            Valid waiting and movement successor states.
+        """
         result: list[Successor] = []
         depart = turn + 1
         if depart <= horizon and table.zone_free(zone, depart):
@@ -154,6 +235,21 @@ class SpaceTimeScheduler:
         horizon: int,
         mode: int,
     ) -> list[Step]:
+        """Search for one drone route in the reservation table.
+
+        Args:
+            network: Network in which to search.
+            table: Reserved zone and link capacities.
+            dist: Minimum cost from each zone to the end.
+            horizon: Maximum allowed turn.
+            mode: Routing tie-break mode.
+
+        Returns:
+            Ordered movement steps for the route.
+
+        Raises:
+            SimulationError: If no route fits within the horizon.
+        """
         start = network.start
         end = network.end
         origin: State = (start.name, 0)
@@ -201,6 +297,15 @@ class SpaceTimeScheduler:
     def _rebuild(
         parent: dict[State, tuple[State, Step | None]], goal: State
     ) -> list[Step]:
+        """Reconstruct movement steps from search predecessor data.
+
+        Args:
+            parent: Mapping of states to predecessors and movement steps.
+            goal: Ending search state.
+
+        Returns:
+            Ordered movement steps for the route.
+        """
         steps: list[Step] = []
         cursor = goal
         while cursor in parent:
@@ -213,6 +318,12 @@ class SpaceTimeScheduler:
 
     @staticmethod
     def _reserve(table: ReservationTable, steps: list[Step]) -> None:
+        """Reserve all route resources in the reservation table.
+
+        Args:
+            table: Reservation table to update.
+            steps: Route movement steps to reserve.
+        """
         for index, step in enumerate(steps):
             table.reserve_link(step.link, step.depart)
             if step.arrive > step.depart:
@@ -224,6 +335,14 @@ class SpaceTimeScheduler:
 
     @staticmethod
     def _turns(routes: list[list[Step]]) -> list[Turn]:
+        """Convert routes into ordered per-turn movement lists.
+
+        Args:
+            routes: Scheduled movement steps for all drones.
+
+        Returns:
+            Movement lists in turn order.
+        """
         departing: dict[int, Turn] = {}
         flying: set[int] = set()
         last = 0
