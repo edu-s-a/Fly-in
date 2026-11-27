@@ -1,7 +1,9 @@
 /maps
 __pycache__/
 .mypy_cache/
+*.pyc
 .venv
-/tests
+.mypy_cache/
+.pytest_cache/
 REVIEW.txt
 
