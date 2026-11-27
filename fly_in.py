@@ -1,29 +1,47 @@
+#!/usr/bin/env python3
 import os
 import sys
 
 from errors import FlyInError
 from map_parser import MapParser
 from renderer import Renderer
-from simulation import Simulation
+from simulation import Simulation, TurnResult
 from space_time_scheduler import SpaceTimeScheduler
 
 
 class Cli:
-    FLAGS = {"--visual", "--no-color"}
-    USAGE = "Usage: python3 fly_in.py [--visual] [--no-color] <map_file>"
+    FLAGS = {"--visual", "--no-color", "--capacity-info", "--stats"}
+    USAGE = (
+        "Usage: python3 fly_in.py [--visual] [--no-color] "
+        "[--capacity-info] [--stats] <map_file>"
+    )
 
-    def parse_args(self, args: list[str]) -> tuple[str, set[str]] | None:
-        flags = {arg for arg in args if arg.startswith("--")}
-        paths = [arg for arg in args if not arg.startswith("--")]
-        if len(paths) != 1 or not flags <= self.FLAGS:
-            return None
-        return paths[0], flags
+    def __init__(self, args: list[str]) -> None:
+        self._flags: set[str] = {a for a in args if a.startswith("--")}
+        self._paths: list[str] = [a for a in args if not a.startswith("--")]
 
-    @staticmethod
-    def want_color(flags: set[str]) -> bool:
-        if "--no-color" in flags or "NO_COLOR" in os.environ:
+    @property
+    def valid(self) -> bool:
+        return len(self._paths) == 1 and self._flags <= self.FLAGS
+
+    def _want_color(self) -> bool:
+        if "--no-color" in self._flags or "NO_COLOR" in os.environ:
             return False
-        return "--visual" in flags or sys.stdout.isatty()
+        return "--visual" in self._flags or sys.stdout.isatty()
+
+    def _show(self, renderer: Renderer, results: list[TurnResult]) -> None:
+        visual = "--visual" in self._flags
+        info = "--capacity-info" in self._flags
+        if visual:
+            print(renderer.legend())
+            print()
+        for result in results:
+            print(renderer.frame(result) if visual else renderer.line(result))
+            if info:
+                for text in renderer.capacity_lines(result):
+                    print(text)
+            if visual:
+                print()
 
     @staticmethod
     def report(simulation: Simulation) -> None:
@@ -39,29 +57,19 @@ class Cli:
         )
         print(f"total path cost: {simulation.total_cost}", file=sys.stderr)
 
-    def run(self, args: list[str]) -> int:
-        parsed = self.parse_args(args)
-        if parsed is None:
+    def run(self) -> int:
+        if not self.valid:
             print(self.USAGE, file=sys.stderr)
             return 2
-        path, flags = parsed
         try:
-            network = MapParser().parse(path)
+            network = MapParser().parse(self._paths[0])
             simulation = Simulation(network)
             plan = SpaceTimeScheduler().plan(simulation)
             results = simulation.run(plan)
-            renderer = Renderer(network, self.want_color(flags))
-            if "--visual" in flags:
-                print(renderer.legend())
-                print()
-                for result in results:
-                    print(renderer.frame(result))
-                    print()
-            else:
-                for result in results:
-                    print(renderer.line(result))
+            self._show(Renderer(network, self._want_color()), results)
             sys.stdout.flush()
-            self.report(simulation)
+            if "--stats" in self._flags:
+                self.report(simulation)
         except FlyInError as err:
             print(f"Error: {err}", file=sys.stderr)
             return 1
@@ -72,7 +80,7 @@ class Cli:
 
 
 def main() -> int:
-    return Cli().run(sys.argv[1:])
+    return Cli(sys.argv[1:]).run()
 
 
 if __name__ == "__main__":
