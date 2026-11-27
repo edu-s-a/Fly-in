@@ -15,7 +15,7 @@ target_for() {
         *01_maze_nightmare*) echo 30 ;;
         *02_capacity_hell*) echo 35 ;;
         *03_ultimate_challenge*) echo 45 ;;
-        *01_the_impossible_dream*) echo 44 ;;
+        *01_the_impossible_dream*) echo 45 ;;
         *) echo "-" ;;
     esac
 }
