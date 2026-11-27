@@ -176,7 +176,8 @@ class Simulation:
             Snapshot describing the completed turn.
 
         Raises:
-            SimulationError: If the simulation is finished or the turn is invalid.
+            SimulationError: If the simulation is finished or the turn is
+                invalid.
         """
         if self.finished:
             raise SimulationError("simulation already finished")
