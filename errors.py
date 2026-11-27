@@ -26,7 +26,11 @@ class ParseError(FlyInError):
         super().__init__(self._format())
 
     def _format(self) -> str:
-        """Return the message shown to the user."""
+        """Return the message shown to the user.
+
+        Returns:
+            The reason with an optional 1-based line number prefix.
+        """
         if self.line is None:
             return self.reason
         return f"line {self.line}: {self.reason}"
