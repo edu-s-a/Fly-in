@@ -1,9 +1,17 @@
+"""Render simulation turns as text or ANSI-colored visual output."""
+
 from network import Network
 from simulation import TurnResult
 from zone import Zone, ZoneRole
 
 
 class Renderer:
+    """Format map, turn, occupancy, and capacity information for display.
+
+    Attributes:
+        NAMED: Mapping of named colors to ANSI color codes.
+        PALETTE: ANSI 256-color indices used for unknown color names.
+    """
 
     _RESET = "\033[0m"
     _ENDPOINTS = (ZoneRole.START, ZoneRole.END)
@@ -18,6 +26,12 @@ class Renderer:
     PALETTE: list[int] = [196, 202, 208, 214, 220, 118, 49, 45, 33, 99, 171]
 
     def __init__(self, network: Network, enabled: bool) -> None:
+        """Initialize a renderer for a network.
+
+        Args:
+            network: Network to render.
+            enabled: Whether ANSI color output is enabled.
+        """
         self._network = network
         self._enabled = enabled
         self._width = max(len(zone.name) for zone in network.zones)
@@ -28,11 +42,28 @@ class Renderer:
         self._flying: dict[int, str] = {}
 
     def paint(self, text: str, code: str) -> str:
+        """Wrap text in an ANSI color code when enabled.
+
+        Args:
+            text: Text to format.
+            code: ANSI style or color code.
+
+        Returns:
+            Colored text when enabled, otherwise the original text.
+        """
         if not self._enabled or not code:
             return text
         return f"\033[{code}m{text}{self._RESET}"
 
     def _code(self, color: str | None) -> str:
+        """Resolve a zone color name to an ANSI code.
+
+        Args:
+            color: Optional named or custom color.
+
+        Returns:
+            ANSI color code, or an empty string if no color is set.
+        """
         if color is None:
             return ""
         key = color.lower()
@@ -42,6 +73,15 @@ class Renderer:
         return f"38;5;{self.PALETTE[index]}"
 
     def zone_text(self, zone: Zone, width: int = 0) -> str:
+        """Format a zone name with color and optional padding.
+
+        Args:
+            zone: Zone to format.
+            width: Minimum display width of the zone name.
+
+        Returns:
+            Formatted zone name with padding.
+        """
         code = self._code(zone.color)
         if code and zone.role in self._ENDPOINTS:
             code = "1;" + code
@@ -49,12 +89,28 @@ class Renderer:
         return self.paint(zone.name, code) + padding
 
     def _split(self, token: str) -> tuple[int, list[Zone]]:
+        """Split a turn token into a drone ID and zone sequence.
+
+        Args:
+            token: Turn token describing a drone's position.
+
+        Returns:
+            Drone ID and ordered list of zones from the token.
+        """
         head, _, rest = token.partition("-")
         zones = [self._network.get_zone(name) for name in rest.split("-")]
         return int(head[1:]), zones
 
     @staticmethod
     def _target(zones: list[Zone]) -> Zone:
+        """Select the zone whose color should represent a turn token.
+
+        Args:
+            zones: Zones contained in a turn token.
+
+        Returns:
+            Zone selected for color representation.
+        """
         if len(zones) == 1:
             return zones[0]
         for zone in zones:
@@ -63,6 +119,14 @@ class Renderer:
         return zones[-1]
 
     def line(self, result: TurnResult) -> str:
+        """Render one turn in compact single-line format.
+
+        Args:
+            result: Turn result to render.
+
+        Returns:
+            Colored or plain turn-line text.
+        """
         parts: list[str] = []
         for token in result.tokens:
             _, zones = self._split(token)
@@ -71,6 +135,11 @@ class Renderer:
         return " ".join(parts)
 
     def legend(self) -> str:
+        """Render a legend for every zone in the network.
+
+        Returns:
+            Multi-line map legend.
+        """
         lines = [self.paint("Map", "1")]
         for zone in self._network.zones:
             notes = [zone.zone_type.value]
@@ -86,12 +155,28 @@ class Renderer:
         return "\n".join(lines)
 
     def frame(self, result: TurnResult) -> str:
+        """Render a complete visual frame for one turn.
+
+        Args:
+            result: Turn result to render.
+
+        Returns:
+            Multi-line visual turn frame.
+        """
         self._update(result)
         head = self.paint(f"Turn {result.turn}", "1")
         lines = [head, f"  {self.line(result)}"]
         return "\n".join(lines + self._occupancy())
 
     def capacity_lines(self, result: TurnResult) -> list[str]:
+        """Render zone and connection capacity usage.
+
+        Args:
+            result: Turn result containing usage totals.
+
+        Returns:
+            Lines describing capacity usage for the turn.
+        """
         lines: list[str] = []
         for name, (used, capacity) in result.zone_usage.items():
             zone = self._network.get_zone(name)
@@ -106,6 +191,11 @@ class Renderer:
         return lines
 
     def _update(self, result: TurnResult) -> None:
+        """Update cached drone locations and in-flight links.
+
+        Args:
+            result: Turn result used to update renderer state.
+        """
         for token in result.tokens:
             number, zones = self._split(token)
             if len(zones) == 1:
@@ -116,6 +206,11 @@ class Renderer:
                 self._flying[number] = token.partition("-")[2]
 
     def _occupancy(self) -> list[str]:
+        """Render current drone occupancy by zone and link.
+
+        Returns:
+            Occupancy lines for the current turn.
+        """
         groups: dict[str, list[int]] = {}
         for number, name in sorted(self._where.items()):
             groups.setdefault(name, []).append(number)
