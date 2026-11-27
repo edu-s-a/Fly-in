@@ -1,10 +1,18 @@
+"""Parse Fly-in map files and construct their network representation."""
+
 from errors import ParseError, NetworkError
 from network import Network
 from zone import Connection, Zone, ZoneRole, ZoneType
 
 
 class MapParser:
-    """Parse map files into network objects."""
+    """Parse map files into network objects.
+
+    Attributes:
+        _ZONE_KEYWORDS: Mapping of map keywords to zone roles.
+        _ZONE_KEYS: Metadata keys accepted for zone declarations.
+        _CONNECTION_KEYS: Metadata keys accepted for connection declarations.
+    """
 
     _ZONE_KEYWORDS: dict[str, ZoneRole] = {
         "start_hub": ZoneRole.START,
@@ -18,7 +26,17 @@ class MapParser:
         self._connection_keys: set[frozenset[str]] = set()
 
     def parse(self, path: str) -> Network:
-        """Parse a map file into a Network."""
+        """Parse a map file into a Network.
+
+        Args:
+            path: Path to the UTF-8 map file.
+
+        Returns:
+            Parsed network representation of the map.
+
+        Raises:
+            ParseError: If the file cannot be read or is not valid UTF-8.
+        """
         try:
             with open(path, encoding="utf-8") as file:
                 lines = file.read().splitlines()
@@ -29,7 +47,17 @@ class MapParser:
         return self._parse_lines(lines)
 
     def _parse_lines(self, lines: list[str]) -> Network:
-        """Parse map-file lines and validate the resulting network."""
+        """Parse map-file lines and validate the resulting network.
+
+        Args:
+            lines: Lines from the map file.
+
+        Returns:
+            Validated network constructed from the lines.
+
+        Raises:
+            ParseError: If the file is incomplete or otherwise invalid.
+        """
         network: Network | None = None
         self._connection_keys = set()
         for line_no, raw in enumerate(lines, start=1):
@@ -50,7 +78,16 @@ class MapParser:
         return network
 
     def _parse_entry(self, network: Network, line: str, line_no: int) -> None:
-        """Parse one non-header line and add its entry to ``network``."""
+        """Parse one non-header line and add its entry to ``network``.
+
+        Args:
+            network: Network receiving the parsed entry.
+            line: Non-header line to parse.
+            line_no: 1-based line number in the map file.
+
+        Raises:
+            ParseError: If the line syntax or keyword is invalid.
+        """
         keyword, sep, value = line.partition(":")
         keyword = keyword.strip()
         value = value.strip()
@@ -68,7 +105,18 @@ class MapParser:
             raise ParseError(f"unknown keyword '{keyword}'", line_no)
 
     def _parse_header(self, line: str, line_no: int) -> Network:
-        """Parse the required first line and create a network."""
+        """Parse the required first line and create a network.
+
+        Args:
+            line: First map-file line.
+            line_no: 1-based line number in the map file.
+
+        Returns:
+            Empty network initialized with the drone count.
+
+        Raises:
+            ParseError: If the header is missing or malformed.
+        """
         keyword, sep, value = line.partition(":")
         if not sep or keyword.strip() != "nb_drones":
             raise ParseError("nb_drones must be the first line", line_no)
@@ -79,7 +127,18 @@ class MapParser:
 
     def _split_metadata(self, value: str, line_no: int
                         ) -> tuple[str, dict[str, str]]:
-        """Separate a line's body from optional ``[key=value]`` metadata."""
+        """Separate a line's body from optional ``[key=value]`` metadata.
+
+        Args:
+            value: Entry value, potentially followed by metadata.
+            line_no: 1-based line number in the map file.
+
+        Returns:
+            A tuple containing the body and parsed metadata dictionary.
+
+        Raises:
+            ParseError: If metadata syntax is malformed or duplicated.
+        """
         start = value.find("[")
         if start == -1:
             if "]" in value:
@@ -107,7 +166,17 @@ class MapParser:
     def _parse_zone(
         self, network: Network, value: str, role: ZoneRole, line_no: int
     ) -> None:
-        """Parse a zone declaration and add the zone to ``network``."""
+        """Parse a zone declaration and add the zone to ``network``.
+
+        Args:
+            network: Network receiving the zone.
+            value: Zone declaration value.
+            role: Role assigned to the declared zone.
+            line_no: 1-based line number in the map file.
+
+        Raises:
+            ParseError: If the zone declaration or metadata is invalid.
+        """
         body, meta = self._split_metadata(value, line_no)
         tokens = body.split()
         if len(tokens) != 3:
@@ -145,7 +214,18 @@ class MapParser:
             raise ParseError(str(err), line_no) from None
 
     def _parse_zone_type(self, text: str, line_no: int) -> ZoneType:
-        """Convert a zone-type string to its corresponding enum value."""
+        """Convert a zone-type string to its corresponding enum value.
+
+        Args:
+            text: Zone type name.
+            line_no: 1-based line number in the map file.
+
+        Returns:
+            Matching zone type enum value.
+
+        Raises:
+            ParseError: If the text is not a recognized zone type.
+        """
         try:
             return ZoneType(text)
         except ValueError:
@@ -158,7 +238,16 @@ class MapParser:
     def _parse_connection(
         self, network: Network, value: str, line_no: int
     ) -> None:
-        """Parse a connection declaration and add it to ``network``."""
+        """Parse a connection declaration and add it to ``network``.
+
+        Args:
+            network: Network receiving the connection.
+            value: Connection declaration value.
+            line_no: 1-based line number in the map file.
+
+        Raises:
+            ParseError: If the connection declaration or metadata is invalid.
+        """
         body, meta = self._split_metadata(value, line_no)
         names = body.split("-")
         if len(body.split()) != 1 or len(names) != 2 or not all(names):
@@ -198,7 +287,19 @@ class MapParser:
         self._connection_keys.add(pair)
 
     def _parse_int(self, text: str, what: str, line: int) -> int:
-        """Convert text to int or raise a ParseError."""
+        """Convert text to int or raise a ParseError.
+
+        Args:
+            text: Text to convert.
+            what: Description of the value being parsed.
+            line: 1-based line number in the map file.
+
+        Returns:
+            Parsed integer value.
+
+        Raises:
+            ParseError: If text is not a valid integer.
+        """
         try:
             return int(text)
         except ValueError:
@@ -207,7 +308,19 @@ class MapParser:
             ) from None
 
     def _parse_positive_int(self, text: str, what: str, line: int) -> int:
-        """Convert text to a strictly positive int."""
+        """Convert text to a strictly positive int.
+
+        Args:
+            text: Text to convert.
+            what: Description of the value being parsed.
+            line: 1-based line number in the map file.
+
+        Returns:
+            Parsed positive integer value.
+
+        Raises:
+            ParseError: If text is not an integer or is not positive.
+        """
         value = self._parse_int(text, what, line)
         if value <= 0:
             raise ParseError(
