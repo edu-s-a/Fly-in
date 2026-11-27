@@ -1,4 +1,4 @@
-.PHONY: install run debug clean lint lint-strict bench
+.PHONY: install run debug clean lint lint-strict bench visual
 
 PYTHON      := python3
 POETRY      := poetry
@@ -17,8 +17,6 @@ MYPY_FLAGS  := --warn-return-any \
                --disallow-untyped-defs \
                --check-untyped-defs
 MYPY_EXCL   := --exclude '(^|/)\.venv/'
-
-BENCH_DIRS  := maps/easy maps/medium maps/hard maps/challenger
 
 install:
 	@if ! command -v poetry >/dev/null 2>&1; then \
@@ -48,34 +46,8 @@ lint-strict:
 	@$(POETRY) run flake8 . --exclude=.venv
 	@$(POETRY) run mypy . --strict $(MYPY_EXCL)
 
+visual:
+	@$(POETRY) run $(PYTHON) $(MAIN) --visual $(MAP)
+
 bench:
-	@printf "%-44s %-9s %-7s %-6s %s\n" MAP TURNS TARGET STATUS TIME
-	@for dir in $(BENCH_DIRS); do \
-		for f in $$dir/*.txt; do \
-			[ -e "$$f" ] || continue; \
-			target="-"; \
-			case "$$f" in \
-				*01_linear_path*) target=6;; \
-				*02_simple_fork*) target=8;; \
-				*03_basic_capacity*) target=6;; \
-				*01_dead_end_trap*) target=12;; \
-				*02_circular_loop*) target=15;; \
-				*03_priority_puzzle*) target=12;; \
-				*01_maze_nightmare*) target=30;; \
-				*02_capacity_hell*) target=35;; \
-				*03_ultimate_challenge*) target=45;; \
-				*01_the_impossible_dream*) target=44;; \
-			esac; \
-			start=$$(date +%s.%N); \
-			out=$$($(POETRY) run $(PYTHON) $(MAIN) $$f 2>&1 >/dev/null | head -n 1); \
-			end=$$(date +%s.%N); \
-			turns=$${out#turns: }; \
-			status="-"; \
-			if [ "$$target" != "-" ]; then \
-				if [ "$$turns" -le "$$target" ] 2>/dev/null; then \
-					status=ok; else status=OVER; fi; \
-			fi; \
-			secs=$$(awk -v a=$$start -v b=$$end 'BEGIN{printf "%.2f", b-a}'); \
-			printf "%-44s %-9s %-7s %-6s %ss\n" "$$f" "$$turns" "$$target" "$$status" "$$secs"; \
-		done; \
-	done
+	@bash bench.sh "$(POETRY) run $(PYTHON) $(MAIN)"
